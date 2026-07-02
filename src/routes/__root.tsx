@@ -1,4 +1,5 @@
  import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
 import {
   Outlet,
   Link,
@@ -106,7 +107,12 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6098422409722649"
+     crossOrigin="anonymous"
+        />
       </head>
+
       <body>
         {children}
         <Scripts />

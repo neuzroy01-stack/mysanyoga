@@ -95,7 +95,7 @@ function CategoryPage() {
                 to="/vehicle-booking"
                 className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-gold-glow"
               >
-                Open Calculator
+                Book Now
               </Link>
             </motion.div>
           )}
