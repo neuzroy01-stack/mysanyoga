@@ -11,11 +11,11 @@ import {
   MapPin,
   AlertTriangle,
   Sparkles,
+  ArrowLeftRight,
+  Calculator,
 } from "lucide-react";
 import {
   VEHICLE_RATES,
-  SERVICE_AREA,
-  isServiceableDestination,
   calculateFare,
   formatINR,
   getVehicleRate,
@@ -23,6 +23,19 @@ import {
 } from "@/lib/vehicle-fare";
 import { waLink } from "@/lib/site";
 import { reserveOrderId, commitOrderId, releaseOrderId } from "@/lib/order-id";
+import {
+  NominatimAutocomplete,
+  type NominatimPlace,
+} from "@/components/NominatimAutocomplete";
+import { RouteInfoCard } from "@/components/RouteInfoCard";
+import { Vehicle3DPreview } from "@/components/Vehicle3DPreview";
+import { CalculatorDialog } from "@/components/CalculatorDialog";
+import {
+  SERVICE_DISTRICT,
+  isPickupInServiceDistrict,
+} from "@/lib/service-area";
+import { haversineKm, estimateRoadKm, fetchRoadDistanceKm } from "@/lib/geo";
+
 export const Route = createFileRoute("/vehicle-booking")({
   head: () => ({
     meta: [
@@ -42,12 +55,13 @@ export const Route = createFileRoute("/vehicle-booking")({
   }),
   component: VehicleBookingPage,
 });
+
 function uid() {
   return Math.random().toString(36).slice(2, 9);
 }
-function VehicleBookingPage() {
 
-    // Global 6-digit Order ID — reserved on mount, committed on WhatsApp send.
+function VehicleBookingPage() {
+  // Global 6-digit Order ID — reserved on mount, committed on WhatsApp send.
   const [orderId, setOrderId] = useState<string>("");
   const committedRef = useRef(false);
   useEffect(() => {
@@ -59,18 +73,24 @@ function VehicleBookingPage() {
   }, []);
 
   // Journey
-  const [pickup, setPickup] = useState("");
-  const [destination, setDestination] = useState("");
-
+  const [pickupPlace, setPickupPlace] = useState<NominatimPlace | null>(null);
+  const [destinationPlace, setDestinationPlace] = useState<NominatimPlace | null>(null);
   const [travelDate, setTravelDate] = useState("");
   const [pickupTime, setPickupTime] = useState("");
+
   // Travel info
   const [distanceKm, setDistanceKm] = useState<number>(0);
+  const [distanceTouched, setDistanceTouched] = useState(false);
   const [waitingHours, setWaitingHours] = useState<number>(0);
+
+  // Calculator popup
+  const [calcOpen, setCalcOpen] = useState(false);
+
   // Pricing config
   const [gstPercent, setGstPercent] = useState<number>(5);
   const [coupon, setCoupon] = useState("");
   const [discount, setDiscount] = useState<number>(0);
+
   // Vehicles
   const [vehicles, setVehicles] = useState<BookingVehicle[]>([
     {
@@ -82,23 +102,66 @@ function VehicleBookingPage() {
       tollParking: 0,
     },
   ]);
-  const destinationValid =
-    destination.trim().length === 0 || isServiceableDestination(destination);
-  const destinationEntered = destination.trim().length > 0;
-  const canBook = destinationValid && destinationEntered && vehicles.length > 0;
+
+  const pickup = pickupPlace?.displayName ?? "";
+  const destination = destinationPlace?.displayName ?? "";
+  const pickupInServiceArea = pickupPlace
+    ? isPickupInServiceDistrict(pickupPlace.address, pickupPlace.displayName)
+    : true;
+  const canBook =
+    !!pickupPlace &&
+    !!destinationPlace &&
+    distanceKm > 0 &&
+    vehicles.length > 0;
+
+  // Auto-prefill an estimated distance whenever both endpoints are picked
+  // Uses OSRM (free public routing) for accurate driving distance, falling
+  // back to haversine × 1.3 on failure. User can still override manually.
+  useEffect(() => {
+    if (!pickupPlace || !destinationPlace) {
+      if (!distanceTouched) setDistanceKm(0);
+      return;
+    }
+    if (distanceTouched) return;
+    // Fast local estimate first so the UI isn't blank while we fetch.
+    const straight = haversineKm(
+      { lat: pickupPlace.lat, lon: pickupPlace.lon },
+      { lat: destinationPlace.lat, lon: destinationPlace.lon },
+    );
+    setDistanceKm(estimateRoadKm(straight));
+    const controller = new AbortController();
+    fetchRoadDistanceKm(
+      { lat: pickupPlace.lat, lon: pickupPlace.lon },
+      { lat: destinationPlace.lat, lon: destinationPlace.lon },
+      controller.signal,
+    ).then((km) => {
+      // Only apply if the user hasn't manually overridden since.
+      setDistanceKm((cur) => (distanceTouched ? cur : km));
+    });
+    return () => controller.abort();
+  }, [pickupPlace, destinationPlace, distanceTouched]);
+
+  const swapLocations = () => {
+    const a = pickupPlace;
+    setPickupPlace(destinationPlace);
+    setDestinationPlace(a);
+  };
+
   const breakdown = useMemo(
     () =>
       calculateFare({
         distanceKm,
         waitingHours,
         vehicles,
-        gstPercent: destinationValid ? gstPercent : 0,
-        discount: destinationValid ? discount : 0,
+        gstPercent,
+        discount,
       }),
-    [distanceKm, waitingHours, vehicles, gstPercent, discount, destinationValid]
+    [distanceKm, waitingHours, vehicles, gstPercent, discount]
   );
+
   const advance = Math.round(breakdown.grandTotal * 0.25);
   const remaining = breakdown.grandTotal - advance;
+
   const addVehicle = () => {
     const v = VEHICLE_RATES[0];
     setVehicles((prev) => [
@@ -113,6 +176,7 @@ function VehicleBookingPage() {
       },
     ]);
   };
+
   const updateVehicle = (id: string, patch: Partial<BookingVehicle>) => {
     setVehicles((prev) =>
       prev.map((v) => {
@@ -126,15 +190,18 @@ function VehicleBookingPage() {
       })
     );
   };
+
   const removeVehicle = (id: string) =>
     setVehicles((prev) => prev.filter((v) => v.uid !== id));
+
   const applyCoupon = () => {
     const c = coupon.trim().toUpperCase();
-    if (c === "Saket") setDiscount(Math.round(breakdown.subTotal * 0.01));
-    else if (c === "Neha") setDiscount(500);
-    else if (c === "WEDDING1000") setDiscount(100);
+    if (c === "SANYOGA10") setDiscount(Math.round(breakdown.subTotal * 0.1));
+    else if (c === "FLAT500") setDiscount(500);
+    else if (c === "WEDDING1000") setDiscount(1000);
     else setDiscount(0);
   };
+
   const waMessage = buildWaMessage({
     pickup,
     destination,
@@ -146,6 +213,24 @@ function VehicleBookingPage() {
     breakdown,
     orderId,
   });
+
+  const waHref = canBook ? waLink(waMessage) : undefined;
+  const onWaSent = () => {
+    commitOrderId(orderId);
+    committedRef.current = true;
+  };
+
+  const primaryVehicleName =
+    getVehicleRate(vehicles[0]?.vehicleId)?.name ?? undefined;
+  const vehicleSummary = vehicles.map((v) => {
+    const rate = getVehicleRate(v.vehicleId);
+    return {
+      name: rate?.name ?? "—",
+      quantity: v.quantity,
+      color: v.color,
+    };
+  });
+
   return (
     <div className="pt-24 pb-24">
       <div className="mx-auto max-w-7xl px-6">
@@ -156,6 +241,7 @@ function VehicleBookingPage() {
         >
           <ArrowLeft className="h-4 w-4" /> Back to Vehicle Rental
         </Link>
+
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -173,45 +259,47 @@ function VehicleBookingPage() {
             update instantly — transparent, with no hidden charges.
           </p>
         </motion.div>
+
         <div className="mt-12 grid lg:grid-cols-[1fr_400px] gap-8">
           {/* LEFT — FORM */}
           <div className="space-y-8">
             {/* Journey */}
             <Section title="Journey Details">
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-[1fr_auto_1fr] gap-3 items-start">
                 <Field label="Pickup Location" icon={<MapPin className="h-4 w-4" />}>
-                  <input
-                    value={pickup}
-                    onChange={(e) => setPickup(e.target.value)}
-                    placeholder="e.g. Andheri, Mumbai"
-                    className={inputCls()}
+                  <NominatimAutocomplete
+                    value={pickupPlace}
+                    onChange={setPickupPlace}
+                    placeholder="Search any pickup location in India"
+                    biasGiridih
                   />
                 </Field>
+                <div className="hidden sm:flex items-end h-full pb-2">
+                  <button
+                    type="button"
+                    onClick={swapLocations}
+                    aria-label="Swap pickup and destination"
+                    className="mt-6 rounded-full border border-gold-hairline p-2.5 text-primary hover:bg-primary hover:text-primary-foreground transition"
+                  >
+                    <ArrowLeftRight className="h-4 w-4" />
+                  </button>
+                </div>
                 <Field
                   label="Destination"
                   icon={<MapPin className="h-4 w-4" />}
-                  error={
-                    destinationEntered && !destinationValid
-                      ? "Not in our service area"
-                      : undefined
-                  }
                 >
-                  <input
-                    value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
-                    placeholder="e.g. Lonavala"
-                    className={inputCls(
-                      destinationEntered && !destinationValid
-                        ? "border-destructive ring-2 ring-destructive/30"
-                        : ""
-                    )}
+                  <NominatimAutocomplete
+                    value={destinationPlace}
+                    onChange={setDestinationPlace}
+                    placeholder="Search any destination in India"
                   />
                 </Field>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4 mt-4">
                 <Field label="Travel Date" icon={<Calendar className="h-4 w-4" />}>
                   <input
                     type="date"
                     value={travelDate}
-                    min={new Date(). toISOString().split("T")[0]}
                     onChange={(e) => setTravelDate(e.target.value)}
                     className={inputCls()}
                   />
@@ -220,46 +308,50 @@ function VehicleBookingPage() {
                   <input
                     type="time"
                     value={pickupTime}
-                    step='3600'
                     onChange={(e) => setPickupTime(e.target.value)}
                     className={inputCls()}
                   />
                 </Field>
               </div>
+
               <AnimatePresence>
-                {destinationEntered && !destinationValid && (
+                {pickupPlace && !pickupInServiceArea && (
                   <motion.div
                     initial={{ opacity: 0, y: -6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className="mt-4 flex gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm"
+                    className="mt-4 flex gap-3 rounded-xl border border-amber-400/40 bg-amber-400/10 p-4 text-sm"
                   >
-                    <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+                    <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0" />
                     <div>
-                      <div className="font-medium text-destructive">
-                        Sorry! We are currently not providing vehicle rental
-                        services in your selected destination.
+                      <div className="font-medium text-amber-300">
+                        Service area notice
                       </div>
                       <div className="mt-1 text-muted-foreground">
-                        Try a supported city:{" "}
-                        <span className="text-foreground/80">
-                          {SERVICE_AREA.slice(0, 10).join(", ")}…
-                        </span>
+                        Currently, our vehicle rental service is available only
+                        in {SERVICE_DISTRICT}, Jharkhand. You may continue with
+                        the booking, and we will contact you if our service
+                        becomes available in your area.
                       </div>
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
             </Section>
+
             {/* Travel info */}
             <Section title="Travel Information">
               <div className="grid sm:grid-cols-2 gap-4">
-                <Field label="Total Distance (KM)">
+                <Field label="Estimated Distance (KM)">
                   <input
                     type="number"
                     min={0}
-                    value={distanceKm}
-                    onChange={(e) => setDistanceKm(Number(e.target.value))}
+                    value={distanceKm || ""}
+                    placeholder="0"
+                    onChange={(e) => {
+                      setDistanceTouched(true);
+                      setDistanceKm(Math.max(0, Number(e.target.value)));
+                    }}
                     className={inputCls()}
                   />
                 </Field>
@@ -274,7 +366,14 @@ function VehicleBookingPage() {
                   />
                 </Field>
               </div>
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                This is only an estimated distance provided by the customer.
+                The final travel distance and fare will be verified and
+                confirmed by our team after reviewing the pickup and
+                destination locations.
+              </p>
             </Section>
+
             {/* Vehicles */}
             <Section
               title="Vehicle Selection"
@@ -314,6 +413,7 @@ function VehicleBookingPage() {
                             </button>
                           )}
                         </div>
+
                         <div className="grid sm:grid-cols-2 gap-4">
                           <Field label="Vehicle Type">
                             <select
@@ -392,6 +492,7 @@ function VehicleBookingPage() {
                             />
                           </Field>
                         </div>
+
                         {rate && line && (
                           <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                             <Stat label="Base Fare" value={formatINR(rate.baseFare)} />
@@ -414,6 +515,7 @@ function VehicleBookingPage() {
                     );
                   })}
                 </AnimatePresence>
+
                 <button
                   onClick={addVehicle}
                   className="w-full rounded-2xl border border-dashed border-gold-hairline py-4 text-sm text-muted-foreground hover:text-primary hover:border-primary/60 transition inline-flex items-center justify-center gap-2"
@@ -422,6 +524,7 @@ function VehicleBookingPage() {
                 </button>
               </div>
             </Section>
+
             {/* Coupon */}
             <Section title="Coupon & Taxes">
               <div className="grid sm:grid-cols-3 gap-4">
@@ -429,7 +532,7 @@ function VehicleBookingPage() {
                   <input
                     value={coupon}
                     onChange={(e) => setCoupon(e.target.value)}
-                    placeholder="Apply Coupon code"
+                    placeholder="SANYOGA10"
                     className={inputCls()}
                   />
                 </Field>
@@ -453,18 +556,31 @@ function VehicleBookingPage() {
                 </div>
               </div>
               <p className="mt-3 text-xs text-muted-foreground">
-                Try <span className="text-primary">Saket</span> (10% off),{" "}
-                <span className="text-primary">Neha</span> or{" "}
+                Try <span className="text-primary">SANYOGA10</span> (10% off),{" "}
+                <span className="text-primary">FLAT500</span> or{" "}
                 <span className="text-primary">WEDDING1000</span>.
               </p>
             </Section>
           </div>
+
           {/* RIGHT — SUMMARY */}
           <aside className="lg:sticky lg:top-24 h-fit space-y-6">
+            {(pickupPlace || destinationPlace) && (
+              <Vehicle3DPreview vehicleName={primaryVehicleName} />
+            )}
+            {(pickupPlace || destinationPlace) && (
+              <RouteInfoCard
+                pickup={pickupPlace}
+                destination={destinationPlace}
+                distanceKm={distanceKm}
+                vehicleName={primaryVehicleName}
+              />
+            )}
             <div className="rounded-3xl border border-gold-hairline bg-gradient-to-b from-card to-[oklch(0.16_0.04_20)] p-6">
               <div className="text-xs uppercase tracking-[0.3em] text-primary mb-4">
                 Live Fare Breakdown
               </div>
+
               <div className="space-y-2.5 text-sm">
                 <Row label="Base Fare" value={formatINR(breakdown.baseFareTotal)} />
                 <Row label="Distance Charges" value={formatINR(breakdown.distanceTotal)} />
@@ -490,6 +606,7 @@ function VehicleBookingPage() {
                   />
                 )}
               </div>
+
               <div className="mt-5 rounded-2xl bg-primary/10 border border-primary/30 p-4">
                 <div className="text-[10px] uppercase tracking-[0.3em] text-primary">
                   Grand Total
@@ -498,7 +615,16 @@ function VehicleBookingPage() {
                   {formatINR(breakdown.grandTotal)}
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setCalcOpen(true)}
+                className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-full border border-primary/50 bg-primary/10 text-primary px-5 py-3 text-sm font-medium hover:bg-primary hover:text-primary-foreground transition"
+              >
+                <Calculator className="h-4 w-4" /> Book Car
+              </button>
             </div>
+
             <div className="rounded-3xl border border-gold-hairline bg-card p-6">
               <div className="text-xs uppercase tracking-[0.3em] text-primary mb-4">
                 Booking Summary
@@ -511,17 +637,14 @@ function VehicleBookingPage() {
                 <Row label="Advance (25%)" value={formatINR(advance)} accent="text-primary" />
                 <Row label="Remaining" value={formatINR(remaining)} />
               </div>
+
               <a
-                href={canBook ? waLink(waMessage) : undefined}
+                href={waHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => {
                   if (!canBook) e.preventDefault();
-
-                   else {
-                    commitOrderId(orderId);
-                    committedRef.current = true;
-                  }
+                  else onWaSent();
                 }}
                 aria-disabled={!canBook}
                 className={`mt-5 w-full inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-medium transition ${
@@ -531,7 +654,7 @@ function VehicleBookingPage() {
                 }`}
               >
                 <MessageCircle className="h-4 w-4" />
-                {canBook ? "Proceed to Book on WhatsApp" : "Enter a supported destination"}
+                {canBook ? "Proceed to Book on WhatsApp" : "Complete details to book"}
               </a>
               <p className="mt-3 text-[11px] text-muted-foreground text-center">
                 Order ID <span className="font-mono text-foreground">{orderId || "—"}</span> · Final fare confirmed by our team.
@@ -540,10 +663,29 @@ function VehicleBookingPage() {
           </aside>
         </div>
       </div>
+
+      <CalculatorDialog
+        open={calcOpen}
+        onClose={() => setCalcOpen(false)}
+        pickup={pickupPlace}
+        destination={destinationPlace}
+        distanceKm={distanceKm}
+        travelDate={travelDate}
+        pickupTime={pickupTime}
+        waitingHours={waitingHours}
+        vehicleSummary={vehicleSummary}
+        grandTotal={breakdown.grandTotal}
+        advance={advance}
+        remaining={remaining}
+        waHref={waHref}
+        onWhatsAppClick={onWaSent}
+      />
     </div>
   );
 }
+
 // ---------- helpers / subcomponents ----------
+
 function Section({
   title,
   action,
@@ -563,6 +705,7 @@ function Section({
     </section>
   );
 }
+
 function Field({
   label,
   icon,
@@ -587,9 +730,11 @@ function Field({
     </label>
   );
 }
+
 function inputCls(extra = "") {
   return `w-full rounded-xl border border-gold-hairline bg-background/60 px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/20 transition ${extra}`;
 }
+
 function Row({
   label,
   value,
@@ -606,6 +751,7 @@ function Row({
     </div>
   );
 }
+
 function Stat({
   label,
   value,
@@ -632,6 +778,7 @@ function Stat({
     </div>
   );
 }
+
 function buildWaMessage(args: {
   pickup: string;
   destination: string;
@@ -641,11 +788,11 @@ function buildWaMessage(args: {
   waitingHours: number;
   vehicles: BookingVehicle[];
   breakdown: ReturnType<typeof calculateFare>;
-   orderId: string;
+  orderId: string;
 }) {
   const lines: string[] = [];
   lines.push("*MySanyoga — Vehicle Booking Request*");
-   lines.push("");
+  lines.push("");
   lines.push(`*Order ID:* ${args.orderId || "—"}`);
   lines.push(`*Date:* ${new Date().toLocaleString("en-IN")}`);
   lines.push("");

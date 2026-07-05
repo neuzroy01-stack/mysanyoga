@@ -8,6 +8,7 @@ export type VehicleRate = {
   driverAllowance: number;
   colors: string[];
 };
+
 export const VEHICLE_RATES: VehicleRate[] = [
  
     {
@@ -104,14 +105,15 @@ export const VEHICLE_RATES: VehicleRate[] = [
 export function getVehicleRate(id: string): VehicleRate | undefined {
   return VEHICLE_RATES.find((v) => v.id === id);
 }
+
 // Supported service area — destinations we currently serve.
 // Matching is case-insensitive substring on either side so users can type
 // "Mumbai, Maharashtra" and still match "Mumbai".
 export const SERVICE_AREA: string[] = [
   "Mumbai",
   "Pune",
-  "Murgumi",
-  "Bengabad",
+  "Nashik",
+  "Nagpur",
   "Aurangabad",
   "Thane",
   "Navi Mumbai",
@@ -138,6 +140,7 @@ export const SERVICE_AREA: string[] = [
   "Kolkata",
   "Goa",
 ];
+
 export function isServiceableDestination(input: string): boolean {
   const q = input.trim().toLowerCase();
   if (!q) return false;
@@ -146,6 +149,7 @@ export function isServiceableDestination(input: string): boolean {
     return q.includes(c) || c.includes(q);
   });
 }
+
 export type BookingVehicle = {
   uid: string;
   vehicleId: string;
@@ -154,6 +158,7 @@ export type BookingVehicle = {
   nightCharge: number;
   tollParking: number;
 };
+
 export type FareInput = {
   distanceKm: number;
   waitingHours: number;
@@ -161,6 +166,7 @@ export type FareInput = {
   gstPercent: number;
   discount: number;
 };
+
 export type VehicleFareLine = {
   uid: string;
   vehicleId: string;
@@ -175,6 +181,7 @@ export type VehicleFareLine = {
   perUnit: number;
   total: number;
 };
+
 export type FareBreakdown = {
   lines: VehicleFareLine[];
   baseFareTotal: number;
@@ -189,9 +196,11 @@ export type FareBreakdown = {
   grandTotal: number;
   totalVehicles: number;
 };
+
 export function calculateFare(input: FareInput): FareBreakdown {
   const distance = Math.max(0, input.distanceKm || 0);
   const waiting = Math.max(0, input.waitingHours || 0);
+
   const lines: VehicleFareLine[] = input.vehicles.map((v) => {
     const rate = getVehicleRate(v.vehicleId);
     const qty = Math.max(1, v.quantity || 1);
@@ -235,8 +244,10 @@ export function calculateFare(input: FareInput): FareBreakdown {
       total: perUnit * qty,
     };
   });
+
   const sumBy = (fn: (l: VehicleFareLine) => number) =>
     lines.reduce((acc, l) => acc + fn(l) * l.quantity, 0);
+
   const baseFareTotal = sumBy((l) => l.baseFare);
   const distanceTotal = sumBy((l) => l.distanceCharge);
   const waitingTotal = sumBy((l) => l.waitingCharge);
@@ -244,10 +255,12 @@ export function calculateFare(input: FareInput): FareBreakdown {
   const nightTotal = sumBy((l) => l.nightCharge);
   const tollTotal = sumBy((l) => l.tollParking);
   const subTotal = lines.reduce((acc, l) => acc + l.total, 0);
+
   const gstAmount = Math.round((subTotal * (input.gstPercent || 0)) / 100);
   const discount = Math.max(0, input.discount || 0);
   const grandTotal = Math.max(0, subTotal + gstAmount - discount);
   const totalVehicles = lines.reduce((acc, l) => acc + l.quantity, 0);
+
   return {
     lines,
     baseFareTotal,
@@ -263,6 +276,7 @@ export function calculateFare(input: FareInput): FareBreakdown {
     totalVehicles,
   };
 }
+
 export function formatINR(n: number): string {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",

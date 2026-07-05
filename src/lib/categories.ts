@@ -33,7 +33,7 @@ export const CATEGORIES: Category[] = [
     image: vehicle,
     services: [
       { name: "Scorpio", detail: "Scorpio class with chauffeur", from: "₹1,800 / day" },
-      { name: "Hyundai Creta", detail: "Hyundai Creta for family transfers", from: "₹1,700 / day" },
+      { name: "Hyundai Cret", detail: "Hyundai Creta for family transfers", from: "₹1,700 / day" },
       { name: "Maruti Swift Dzire", detail: "Maruti Swift Dzire perfect for baraat & guests", from: "₹1,500 / day" },
       { name: "Wedding Car (Decorated)", detail: "AC sedan with floral decor, driver included", from: "₹6,500 / day"},
       { name: "Bus Booking", detail: "32–55 seater coach with experienced driver", from: "₹14,000 / day" },

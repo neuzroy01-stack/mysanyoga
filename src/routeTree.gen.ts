@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VehicleBookingRouteImport } from './routes/vehicle-booking'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as PhotographyRouteImport } from './routes/photography'
 import { Route as InvitationsRouteImport } from './routes/invitations'
@@ -23,6 +24,11 @@ import { Route as InvitationsCodeRouteImport } from './routes/invitations.$code'
 const VehicleBookingRoute = VehicleBookingRouteImport.update({
   id: '/vehicle-booking',
   path: '/vehicle-booking',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ServicesRoute = ServicesRouteImport.update({
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/invitations': typeof InvitationsRouteWithChildren
   '/photography': typeof PhotographyRouteWithChildren
   '/services': typeof ServicesRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/vehicle-booking': typeof VehicleBookingRoute
   '/invitations/$code': typeof InvitationsCodeRoute
   '/photography/$service': typeof PhotographyServiceRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/invitations': typeof InvitationsRouteWithChildren
   '/photography': typeof PhotographyRouteWithChildren
   '/services': typeof ServicesRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/vehicle-booking': typeof VehicleBookingRoute
   '/invitations/$code': typeof InvitationsCodeRoute
   '/photography/$service': typeof PhotographyServiceRoute
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/invitations': typeof InvitationsRouteWithChildren
   '/photography': typeof PhotographyRouteWithChildren
   '/services': typeof ServicesRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/vehicle-booking': typeof VehicleBookingRoute
   '/invitations/$code': typeof InvitationsCodeRoute
   '/photography/$service': typeof PhotographyServiceRoute
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/invitations'
     | '/photography'
     | '/services'
+    | '/sitemap.xml'
     | '/vehicle-booking'
     | '/invitations/$code'
     | '/photography/$service'
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/invitations'
     | '/photography'
     | '/services'
+    | '/sitemap.xml'
     | '/vehicle-booking'
     | '/invitations/$code'
     | '/photography/$service'
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/invitations'
     | '/photography'
     | '/services'
+    | '/sitemap.xml'
     | '/vehicle-booking'
     | '/invitations/$code'
     | '/photography/$service'
@@ -154,6 +166,7 @@ export interface RootRouteChildren {
   InvitationsRoute: typeof InvitationsRouteWithChildren
   PhotographyRoute: typeof PhotographyRouteWithChildren
   ServicesRoute: typeof ServicesRouteWithChildren
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   VehicleBookingRoute: typeof VehicleBookingRoute
 }
 
@@ -164,6 +177,13 @@ declare module '@tanstack/react-router' {
       path: '/vehicle-booking'
       fullPath: '/vehicle-booking'
       preLoaderRoute: typeof VehicleBookingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/services': {
@@ -275,6 +295,7 @@ const rootRouteChildren: RootRouteChildren = {
   InvitationsRoute: InvitationsRouteWithChildren,
   PhotographyRoute: PhotographyRouteWithChildren,
   ServicesRoute: ServicesRouteWithChildren,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   VehicleBookingRoute: VehicleBookingRoute,
 }
 export const routeTree = rootRouteImport
