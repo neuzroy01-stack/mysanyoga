@@ -81,14 +81,13 @@ function CategoryPage() {
             >
               <div>
                 <div className="text-xs uppercase tracking-[0.3em] text-primary mb-2">
-                  New · Smart Fare Calculator
+                  🚖 Smart Fare Calculator
                 </div>
                 <h3 className="font-display text-2xl md:text-3xl">
                   Calculate your fare instantly
                 </h3>
                 <p className="text-sm text-muted-foreground mt-1 max-w-xl">
-                  Add multiple vehicles, set distance & waiting hours and watch
-                  the live breakdown update in real-time.
+                 Get an accurate fare estimate in just a few clicks. Select one or multiple vehicle types, enter the travel distance and waiting time, and see your total fare update instantly with a detailed price breakdown.
                 </p>
               </div>
               <Link

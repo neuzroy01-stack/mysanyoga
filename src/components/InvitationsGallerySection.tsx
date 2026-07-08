@@ -34,11 +34,11 @@ import { OrderModal } from "@/components/OrderModal";
  */
 // Per-card override — key is the 4-digit `code` (e.g. "1001").
 const CARD_BACKGROUNDS: Record<string, string> = {
-  "1001": "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=80", // Royal Mandala
-  "1002": "https://images.unsplash.com/photo-1606216794074-735e91aa2c92?auto=format&fit=crop&w=900&q=80", // Ivory Heritage
-  "1003": "https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=900&q=80", // Peacock Court
-  "1004": "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=900&q=80", // Cinematic Save-the-Date
-  "1101": "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=900&q=80", // Champagne Toast
+  "1001": "https://i.pinimg.com/originals/d2/69/47/d269473f63166db7932b80abdcc8da62.png", // Royal Mandala
+  "1002": "https://tse1.mm.bing.net/th/id/OIP.lfIQpljonKvxCXvqlEFyQQHaNK?r=0&rs=1&pid=ImgDetMain&o=7&rm=3", // Ivory Heritage
+  "1003": "https://seemymarriage1.b-cdn.net/wp-content/uploads/2024/05/Traditional-Rajasthani-Floral-Theme-Indian-Wedding-Invitation-Card-683x1024.jpg", // Peacock Court
+  "1004": "https://www.designerpeople.com/wp-content/uploads/2020/02/premium-wedding-card-design-2.jpg", // Cinematic Save-the-Date
+  "1101": "https://brandpacks.com/wp-content/uploads/edd/2022/09/flower-wedding-invitation-card-template-cover.jpg", // Champagne Toast
   "1102": "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=900&q=80", // Reception Reel (video)
   "1201": "https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=900&q=80", // Diamond Vow
   "1301": "https://images.unsplash.com/photo-1601233748803-a8c2ad4c78d3?auto=format&fit=crop&w=900&q=80", // Marigold Glow
@@ -221,8 +221,8 @@ export function InvitationsGallerySection({ embedded = false }: { embedded?: boo
         )}
 
         {/* Sticky search & filter */}
-        <div className={`sticky top-20 z-30 ${embedded ? "" : "mt-10"}`}>
-          <div className="rounded-3xl border border-gold-hairline bg-background/80 backdrop-blur-xl p-4 md:p-5 shadow-gold-glow">
+        <div className={`${embedded ? "" : "mt-10"}`}>
+  <div className="rounded-3xl border border-gold-hairline bg-background/80 backdrop-blur-xl p-4 md:p-5 shadow-gold-glow">
             <div className="flex flex-col md:flex-row gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

@@ -129,7 +129,7 @@ function Hero() {
 }
 
 function Marquee() {
-  const items = ["Wedding Cars", "Luxury Sedans", "Halwai Catering", "Drone Cinematography", "Mandap Decor", "Mithai & Gift Boxes", "DJ & Lighting", "Video Invitations", "Bus Booking"];
+  const items = ["Get10% disscount Use Sanyoga10", "Luxury Sedans", "Halwai Catering", "Drone Cinematography", "Mandap Decor", "Mithai & Gift Boxes", "DJ & Lighting", "Video Invitations", "Bus Booking"];
   return (
     <div className="border-y border-gold-hairline bg-[oklch(0.09_0.015_25)] py-5 overflow-hidden">
       <div className="flex gap-12 animate-[shimmer_30s_linear_infinite] whitespace-nowrap" style={{ animation: "marquee 35s linear infinite" }}>
